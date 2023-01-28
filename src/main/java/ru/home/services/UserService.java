@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 public interface UserService {
+    void addCityToUser(Long userId, Set<String> citySet, String table);
     Long createUser(User user);
     User getUser(Long id);
     User updateUser(Long id, User user);

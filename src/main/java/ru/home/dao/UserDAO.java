@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Set;
 
 public interface UserDAO {
+    void addCityToUser(Long userId, Set<String> citySet, String table);
     boolean checkCity(String cityName);
-    Long createCity(String cityName);
     Long createUser(User user);
     User getUser(Long id);
     User updateUser(Long id, User user);

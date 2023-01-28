@@ -7,6 +7,7 @@ import ru.home.sql.SQLConnection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -22,16 +23,10 @@ public class UserDAOImpl implements UserDAO{
     public boolean checkCity(String cityName){
         boolean answer = false;
         try {
-            for(String item : getAllCities()){
-                if ((cityName.equals(item))) {
-                    answer = true;
-                    break;
-                }
-            }
+            return getAllCities().contains(cityName);
         } catch (RuntimeException e) {
             throw new ApplicationException("Метод checkCity не сработал", e.getCause());
         }
-        return answer;
     }
 
     public Long getCity(String cityName){
@@ -54,9 +49,19 @@ public class UserDAOImpl implements UserDAO{
         Long id = null;
         if (!checkCity(cityName)){
             try {
-                String query = "INSERT INTO city.name " +
-                        "VALUES '" + cityName + "'";
-                PreparedStatement preparedStatement = sqlConnection.getConnection().prepareStatement(query);
+                String query = "INSERT INTO city (name) VALUES ('" + cityName + "');";
+                PreparedStatement preparedStatement = sqlConnection.getConnection().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+                int affectedRows = preparedStatement.executeUpdate();
+                if (affectedRows == 0){
+                    throw new ApplicationException("Создать город не удалось");
+                }
+                try (ResultSet resultSet = preparedStatement.getGeneratedKeys()){
+                    if (resultSet.next()){
+                        id = resultSet.getLong("id");
+                    } else {
+                        throw new ApplicationException("id не был возвращен");
+                    }
+                }
                 preparedStatement.close();
                 return getCity(cityName);
             } catch (SQLException e){
@@ -64,24 +69,66 @@ public class UserDAOImpl implements UserDAO{
             }
         } else return getCity(cityName);
     }
-    public void addCityWorkedToUser(Long userId, Long cityId){
-        
-    }
-    public void addCityLivedToUser(Long userId, Long cityId){
 
-    }
-
-    public void addCityWorkedLived(Long userId, Long cityId, char choice){
-        switch (choice){
-            case 'w' -> addCityWorkedToUser(userId, cityId);
-            case 'l' -> addCityLivedToUser(userId, cityId);
+    public void putCityIdUserIdInTable(Long userId, Long cityId, String table){
+        try {
+            String query = "INSERT INTO " + table + " (userid, cityid) VALUES ("+ userId +", " + cityId + ")";
+            PreparedStatement preparedStatement =  sqlConnection.getConnection().prepareStatement(query);
+            int affectedRows = preparedStatement.executeUpdate();
+            if (affectedRows == 0){
+                throw new ApplicationException("Не получилось добавить город к юзеру");
+            }
+            preparedStatement.close();
+        } catch (SQLException e) {
+            throw new ApplicationException("Метод putCityId... не сработал");
         }
+    }
+
+    public void addCityToUser(Long userId, Set<String> citySet, String table){
+        Long cityId = 0L;
+        for (String cityName : citySet) {
+            if (checkCity(cityName)){
+                cityId = getCity(cityName);
+            } else {
+                cityId = createCity(cityName);
+            }
+            if (cityId == 0L){
+                throw new ApplicationException("Не удалось получить cityId");
+            }
+            putCityIdUserIdInTable(userId, cityId, table);
+        }
+    }
+
+
+    public Long addUser(String userName){
+        Long id = 0L;
+        try {
+            String query = "INSERT INTO users (name) VALUES ('" + userName + "')";
+            PreparedStatement preparedStatement = sqlConnection.getConnection().prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+            int affectedRows = preparedStatement.executeUpdate();
+            if (affectedRows == 0){
+                throw new ApplicationException("Не удалось добавить юзера");
+            }
+            try (ResultSet resultSet = preparedStatement.getGeneratedKeys()){
+                if (resultSet.next()){
+                    id = resultSet.getLong("id");
+                } else throw new ApplicationException("Не удалось получить id юзера");
+            }
+        } catch (SQLException e){
+            throw new ApplicationException("Метод addUser не сработал");
+        }
+        return id;
     }
 
     @Override
     public Long createUser(User user) {
-//      getCityId(стринг из сета и возвращает id или 0 если нет), createCity, addCityIdWorked/Lived (user id, city id)
-        return null;
+        Long id = addUser(user.getName());
+        if (id == 0L){
+            throw new ApplicationException("Метод addUser не сработал");
+        }
+        addCityToUser(id, user.getCitiesLived(), "lived");
+        addCityToUser(id, user.getCitiesWork(), "worked");
+        return id;
     }
 
     @Override
@@ -117,9 +164,11 @@ public class UserDAOImpl implements UserDAO{
         try {
             String query = "DELETE FROM users WHERE id = '" + id + "'";
             PreparedStatement preparedStatement = sqlConnection.getConnection().prepareStatement(query);
-            ResultSet resultSet = preparedStatement.executeQuery();
+            int affectedRows = preparedStatement.executeUpdate();
+            if (affectedRows == 0){
+                throw new ApplicationException("Не удалось удалить юзера");
+            }
             preparedStatement.close();
-            System.out.println("Пользователь с id" + id + " удален.");
         } catch (SQLException e){
             throw new ApplicationException("Метод deleteUser не сработал", e.getCause());
         }

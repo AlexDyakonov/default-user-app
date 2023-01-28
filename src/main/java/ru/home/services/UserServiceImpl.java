@@ -15,6 +15,11 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
+    public void addCityToUser(Long userId, Set<String> citySet, String table) {
+        userDAO.addCityToUser(userId, citySet, table);
+    }
+
+    @Override
     public Long createUser(User user) {
         return userDAO.createUser(user);
     }

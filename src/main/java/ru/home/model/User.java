@@ -5,6 +5,10 @@ import java.util.Optional;
 import java.util.Set;
 
 public class User {
+    public static final int MIN_USER_NAME_LENGTH = 1;
+    public static final int MAX_USER_NAME_LENGTH = 64;
+    public static final int MIN_CITY_NAME_LENGTH = 1;
+    public static final int MAX_CITY_NAME_LENGTH = 64;
     private final Long id;
     private final String name;
     private final Set<String> citiesLived;
